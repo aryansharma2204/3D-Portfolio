@@ -4,13 +4,14 @@ import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 
 import CanvasLoader from "../Loader";
 
-const Space = ({ isMobile, mousePosition }) => {
+const Space = ({ isMobile, mousePosition, touchPosition }) => {
   const space = useGLTF("./space-shuttle/scene.gltf");
 
   // Rotation logic with smoothing (only horizontal rotation)
   useFrame(() => {
     // Smoothing the rotation by using lerping (linear interpolation)
-    space.scene.rotation.y = space.scene.rotation.y + (mousePosition - space.scene.rotation.y) * 0.1; // Smooth horizontal rotation
+    const rotationValue = isMobile ? touchPosition : mousePosition; // Use touchPosition for mobile
+    space.scene.rotation.y = space.scene.rotation.y + (rotationValue - space.scene.rotation.y) * 0.1; // Smooth horizontal rotation
   });
 
   return (
@@ -38,6 +39,7 @@ const Space = ({ isMobile, mousePosition }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [mousePosition, setMousePosition] = useState(0);
+  const [touchPosition, setTouchPosition] = useState(0);
 
   useEffect(() => {
     // Handle screen size change for mobile
@@ -56,21 +58,29 @@ const SpaceCanvas = () => {
   }, []);
 
   useEffect(() => {
-    // Handle mouse move to change rotation based on cursor position
+    // Handle mouse move to change rotation based on cursor position (desktop)
     const handleMouseMove = (e) => {
-      // Map mouse X position to 360-degree rotation (horizontal)
       const mouseX = (e.clientX / window.innerWidth) * Math.PI * 2; // Left-right rotation (horizontal)
-
-      setMousePosition(mouseX); // Apply 360-degree range to horizontal rotation
+      setMousePosition(mouseX);
     };
 
-    // Add mousemove event listener
-    window.addEventListener("mousemove", handleMouseMove);
+    // Handle touch move to change rotation based on touch position (mobile)
+    const handleTouchMove = (e) => {
+      const touchX = (e.touches[0].clientX / window.innerWidth) * Math.PI * 2; // Left-right rotation (horizontal)
+      setTouchPosition(touchX);
+    };
+
+    if (isMobile) {
+      window.addEventListener("touchmove", handleTouchMove);
+    } else {
+      window.addEventListener("mousemove", handleMouseMove);
+    }
 
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchmove", handleTouchMove);
     };
-  }, []);
+  }, [isMobile]);
 
   return (
     <Canvas
@@ -90,7 +100,7 @@ const SpaceCanvas = () => {
           maxPolarAngle={Math.PI / 2}
           minPolarAngle={Math.PI / 2}
         />
-        <Space isMobile={isMobile} mousePosition={mousePosition} />
+        <Space isMobile={isMobile} mousePosition={mousePosition} touchPosition={touchPosition} />
       </Suspense>
 
       <Preload all />
