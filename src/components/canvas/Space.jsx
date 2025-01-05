@@ -9,27 +9,26 @@ const Space = ({ isMobile, mousePosition, touchPosition }) => {
 
   // Rotation logic with smoothing (only horizontal rotation)
   useFrame(() => {
-    const rotationValue = isMobile ? touchPosition : mousePosition; // Use touchPosition for mobile
-    space.scene.rotation.y = space.scene.rotation.y + (rotationValue - space.scene.rotation.y) * 0.1; // Smooth horizontal rotation
+    const rotationValue = isMobile ? touchPosition : mousePosition;
+    space.scene.rotation.y = space.scene.rotation.y + (rotationValue - space.scene.rotation.y) * 0.1;
   });
 
   return (
     <mesh>
       <hemisphereLight intensity={0.15} groundColor="black" />
       <spotLight
-        position={isMobile ? [-10, 30, 5] : [-20, 50, 10]} // Adjusted for mobile
+        position={isMobile ? [-10, 30, 5] : [-20, 50, 10]}
         angle={0.12}
         penumbra={1}
         intensity={1}
         castShadow
         shadow-mapSize={1024}
       />
-      <pointLight intensity={isMobile ? 0.7 : 1} /> {/* Adjust point light for mobile */}
+      <pointLight intensity={isMobile ? 0.7 : 1} />
       <primitive
         object={space.scene}
-        scale={isMobile ? 0.3 : 0.25} // Even smaller scale for mobile
-        position={isMobile ? [-2, -1, -2.2] : [1, -1.4, 0]} // Adjusted position for mobile
-        rotation={[0, 0, 0]} // Initial rotation (will be updated dynamically)
+        scale={isMobile ? 0.2 : 0.25} // Scale model for mobile
+        position={isMobile ? [-1.5, -1, -2.2] : [1, -1.4, 0]} // Adjusted position for mobile
       />
     </mesh>
   );
@@ -87,8 +86,8 @@ const SpaceCanvas = () => {
       shadows
       dpr={[1, 2]}
       camera={{
-        position: isMobile ? [6, 3, 4] : [20, 3, 5], // Adjust camera position for mobile
-        fov: isMobile ? 30 : 25, // Adjust FOV for mobile to make it more compact
+        position: isMobile ? [4, 2, 3] : [20, 3, 5], // Adjust camera position for mobile
+        fov: isMobile ? 35 : 25, // FOV adjustment for mobile
       }}
       gl={{ preserveDrawingBuffer: true }}
     >
