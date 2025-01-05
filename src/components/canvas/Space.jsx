@@ -70,7 +70,8 @@ const SpaceCanvas = () => {
 
     const handleTouchMove = (e) => {
       if (isTouching) {
-        handleMove(e); // Move only if the user is actively touching
+        handleMove(e); // Move only if the user is actively touching inside the canvas
+        e.preventDefault(); // This prevents scrolling when interacting with the canvas
       }
     };
 
@@ -79,8 +80,8 @@ const SpaceCanvas = () => {
     };
 
     if (isMobile) {
-      window.addEventListener("touchstart", handleTouchStart, { passive: true });
-      window.addEventListener("touchmove", handleTouchMove, { passive: true });
+      window.addEventListener("touchstart", handleTouchStart, { passive: false }); // Use passive: false to prevent default
+      window.addEventListener("touchmove", handleTouchMove, { passive: false }); // passive: false allows us to prevent the default scroll
       window.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMove);
