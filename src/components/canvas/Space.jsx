@@ -9,7 +9,6 @@ const Space = ({ isMobile, mousePosition, touchPosition }) => {
 
   // Rotation logic with smoothing (only horizontal rotation)
   useFrame(() => {
-    // Smoothing the rotation by using lerping (linear interpolation)
     const rotationValue = isMobile ? touchPosition : mousePosition; // Use touchPosition for mobile
     space.scene.rotation.y = space.scene.rotation.y + (rotationValue - space.scene.rotation.y) * 0.1; // Smooth horizontal rotation
   });
@@ -28,7 +27,7 @@ const Space = ({ isMobile, mousePosition, touchPosition }) => {
       <pointLight intensity={isMobile ? 0.7 : 1} /> {/* Adjust point light for mobile */}
       <primitive
         object={space.scene}
-        scale={isMobile ? 0.5 : 0.25} // Smaller scale for mobile
+        scale={isMobile ? 0.3 : 0.25} // Even smaller scale for mobile
         position={isMobile ? [-2, -1, -2.2] : [1, -1.4, 0]} // Adjusted position for mobile
         rotation={[0, 0, 0]} // Initial rotation (will be updated dynamically)
       />
@@ -89,7 +88,7 @@ const SpaceCanvas = () => {
       dpr={[1, 2]}
       camera={{
         position: isMobile ? [6, 3, 4] : [20, 3, 5], // Adjust camera position for mobile
-        fov: 25,
+        fov: isMobile ? 30 : 25, // Adjust FOV for mobile to make it more compact
       }}
       gl={{ preserveDrawingBuffer: true }}
     >
