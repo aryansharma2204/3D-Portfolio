@@ -7,16 +7,14 @@ const Space = ({ isMobile, rotationValue }) => {
   const space = useGLTF("./space-shuttle/scene.gltf");
 
   useFrame(() => {
-    // Smooth rotation with limited range
-    const targetRotation = rotationValue;
-    space.scene.rotation.y += (targetRotation - space.scene.rotation.y) * 0.1;
+    space.scene.rotation.y += (rotationValue - space.scene.rotation.y) * 0.1;
   });
 
   return (
     <mesh>
       <hemisphereLight intensity={0.15} groundColor="black" />
       <spotLight
-        position={[-20, 50, 10]}
+        position={isMobile ? [-10, 50, 10] : [-20, 50, 10]}
         angle={0.12}
         penumbra={1}
         intensity={1}
@@ -26,8 +24,8 @@ const Space = ({ isMobile, rotationValue }) => {
       <pointLight intensity={1} />
       <primitive
         object={space.scene}
-        scale={isMobile ? 0.35 : 0.25}
-        position={isMobile ? [0, 0, -2.2] : [1, -1.4, 0]}
+        scale={isMobile ? 0.07 : 0.25}
+        position={isMobile ? [0, -0.5, -1.5] : [1, -1.4, 0]}
       />
     </mesh>
   );
@@ -38,15 +36,13 @@ const SpaceCanvas = () => {
   const [rotationValue, setRotationValue] = useState(0);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 500px)");
-    setIsMobile(mediaQuery.matches);
-
-    const handleMediaQueryChange = (event) => {
-      setIsMobile(event.matches);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
-
-    mediaQuery.addEventListener("change", handleMediaQueryChange);
-    return () => mediaQuery.removeEventListener("change", handleMediaQueryChange);
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   useEffect(() => {
@@ -75,8 +71,10 @@ const SpaceCanvas = () => {
       frameLoop="demand"
       shadows
       camera={{
-        position: isMobile ? [0, 0, 6] : [20, 3, 5],
-        fov: isMobile ? 45 : 25,
+        position: isMobile ? [0, 0, 5] : [20, 3, 5],
+        fov: isMobile ? 50 : 25,
+        near: 0.1,
+        far: 200
       }}
       gl={{ preserveDrawingBuffer: true }}
     >
