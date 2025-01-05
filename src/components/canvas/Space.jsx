@@ -34,6 +34,7 @@ const Space = ({ isMobile, rotationValue }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
+  const [isTouching, setIsTouching] = useState(false); // Flag to track touch status
 
   useEffect(() => {
     const checkMobile = () => {
@@ -52,19 +53,39 @@ const SpaceCanvas = () => {
       setRotationValue(normalizedRotation);
     };
 
+    const handleTouchStart = (e) => {
+      setIsTouching(true); // User starts touching, set the flag to true
+      handleMove(e); // Optionally, trigger move on start for initial position
+    };
+
+    const handleTouchEnd = () => {
+      setIsTouching(false); // User stops touching, reset the flag
+    };
+
     if (isMobile) {
       window.addEventListener("touchmove", handleMove, { passive: true });
-      window.addEventListener("touchstart", handleMove, { passive: true });
+      window.addEventListener("touchstart", handleTouchStart, { passive: true });
+      window.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMove);
     }
 
     return () => {
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchstart", handleMove);
+      if (isMobile) {
+        window.removeEventListener("touchmove", handleMove);
+        window.removeEventListener("touchstart", handleTouchStart);
+        window.removeEventListener("touchend", handleTouchEnd);
+      }
     };
   }, [isMobile]);
+
+  useEffect(() => {
+    // Ensure we don't trigger rotation on mobile unless the user is touching
+    if (isMobile && !isTouching) {
+      setRotationValue(0);
+    }
+  }, [isTouching, isMobile]);
 
   return (
     <Canvas
