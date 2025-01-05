@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 import CanvasLoader from "../Loader";
@@ -35,6 +35,7 @@ const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
   const [isTouching, setIsTouching] = useState(false); // Flag to track touch status
+  const canvasRef = useRef(null); // Reference to the canvas
 
   useEffect(() => {
     const checkMobile = () => {
@@ -54,17 +55,32 @@ const SpaceCanvas = () => {
     };
 
     const handleTouchStart = (e) => {
-      setIsTouching(true); // User starts touching, set the flag to true
-      handleMove(e); // Optionally, trigger move on start for initial position
+      const canvasBounds = canvasRef.current.getBoundingClientRect();
+      const isTouchInsideCanvas = 
+        e.touches[0].clientX >= canvasBounds.left && 
+        e.touches[0].clientX <= canvasBounds.right &&
+        e.touches[0].clientY >= canvasBounds.top &&
+        e.touches[0].clientY <= canvasBounds.bottom;
+
+      if (isTouchInsideCanvas) {
+        setIsTouching(true); // User starts touching inside canvas, set flag to true
+        handleMove(e); // Optionally, trigger move on start for initial position
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (isTouching) {
+        handleMove(e); // Move only if the user is actively touching
+      }
     };
 
     const handleTouchEnd = () => {
-      setIsTouching(false); // User stops touching, reset the flag
+      setIsTouching(false); // Reset the flag when touch ends
     };
 
     if (isMobile) {
-      window.addEventListener("touchmove", handleMove, { passive: true });
       window.addEventListener("touchstart", handleTouchStart, { passive: true });
+      window.addEventListener("touchmove", handleTouchMove, { passive: true });
       window.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMove);
@@ -73,22 +89,16 @@ const SpaceCanvas = () => {
     return () => {
       window.removeEventListener("mousemove", handleMove);
       if (isMobile) {
-        window.removeEventListener("touchmove", handleMove);
         window.removeEventListener("touchstart", handleTouchStart);
+        window.removeEventListener("touchmove", handleTouchMove);
         window.removeEventListener("touchend", handleTouchEnd);
       }
     };
-  }, [isMobile]);
-
-  useEffect(() => {
-    // Ensure we don't trigger rotation on mobile unless the user is touching
-    if (isMobile && !isTouching) {
-      setRotationValue(0);
-    }
-  }, [isTouching, isMobile]);
+  }, [isMobile, isTouching]);
 
   return (
     <Canvas
+      ref={canvasRef} // Attach the ref to the Canvas
       frameLoop="demand"
       shadows
       camera={{
