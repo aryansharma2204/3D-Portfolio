@@ -3,65 +3,34 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 import CanvasLoader from "../Loader";
 
-const Space = ({ isMobile, mousePosition, touchPosition }) => {
+const Space = ({ isMobile, rotationValue }) => {
   const space = useGLTF("./space-shuttle/scene.gltf");
 
-  // Enhanced smooth rotation with dynamic sensitivity
+  // Only rotate on Y axis (horizontal)
   useFrame(() => {
-    const rotationValue = isMobile ? touchPosition : mousePosition;
-    const sensitivity = isMobile ? 0.05 : 0.1; // Reduced sensitivity for mobile
-    space.scene.rotation.y = space.scene.rotation.y + (rotationValue - space.scene.rotation.y) * sensitivity;
+    space.scene.rotation.y = rotationValue;
   });
 
-  // Calculate responsive values based on screen size
-  const getResponsiveValues = () => {
-    const width = window.innerWidth;
-    // Scale adjustments for different screen sizes
-    if (width < 480) { // Extra small devices
-      return {
-        scale: 0.15,
-        position: [-1, -1, -2],
-        lightPosition: [-8, 25, 4]
-      };
-    } else if (width < 768) { // Small devices
-      return {
-        scale: 0.2,
-        position: [-1.2, -1.2, -2.1],
-        lightPosition: [-10, 30, 5]
-      };
-    } else if (width < 1024) { // Medium devices
-      return {
-        scale: 0.22,
-        position: [0, -1.3, -1],
-        lightPosition: [-15, 40, 7]
-      };
-    } else { // Large devices
-      return {
-        scale: 0.25,
-        position: [1, -1.4, 0],
-        lightPosition: [-20, 50, 10]
-      };
-    }
-  };
-
-  const responsiveValues = getResponsiveValues();
+  // Responsive values based on screen size
+  const getScale = () => isMobile ? 0.2 : 0.25;
+  const getPosition = () => isMobile ? [-1.5, -1, -2.2] : [1, -1.4, 0];
 
   return (
     <mesh>
       <hemisphereLight intensity={0.15} groundColor="black" />
       <spotLight
-        position={isMobile ? responsiveValues.lightPosition : [-20, 50, 10]}
+        position={isMobile ? [-10, 30, 5] : [-20, 50, 10]}
         angle={0.12}
         penumbra={1}
-        intensity={isMobile ? 0.8 : 1} // Slightly adjusted for mobile
+        intensity={1}
         castShadow
         shadow-mapSize={1024}
       />
       <pointLight intensity={isMobile ? 0.7 : 1} />
       <primitive
         object={space.scene}
-        scale={responsiveValues.scale}
-        position={responsiveValues.position}
+        scale={getScale()}
+        position={getPosition()}
       />
     </mesh>
   );
@@ -69,80 +38,56 @@ const Space = ({ isMobile, mousePosition, touchPosition }) => {
 
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
-  const [mousePosition, setMousePosition] = useState(0);
-  const [touchPosition, setTouchPosition] = useState(0);
-  const [screenSize, setScreenSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight
-  });
+  const [rotationValue, setRotationValue] = useState(0);
 
   useEffect(() => {
-    // Enhanced screen size detection
-    const handleResize = () => {
-      setScreenSize({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-      setIsMobile(window.innerWidth <= 768); // Updated breakpoint
+    // Check for mobile device
+    const mediaQuery = window.matchMedia("(max-width: 500px)");
+    setIsMobile(mediaQuery.matches);
+
+    const handleMediaQueryChange = (event) => {
+      setIsMobile(event.matches);
     };
 
-    handleResize(); // Initial check
-    window.addEventListener('resize', handleResize);
-
-    return () => window.removeEventListener('resize', handleResize);
+    mediaQuery.addEventListener("change", handleMediaQueryChange);
+    return () => mediaQuery.removeEventListener("change", handleMediaQueryChange);
   }, []);
 
   useEffect(() => {
-    // Improved touch and mouse handling
-    const handleMouseMove = (e) => {
-      const mouseX = (e.clientX / screenSize.width) * Math.PI * 2;
-      setMousePosition(mouseX);
+    const handleMove = (e) => {
+      // Get X coordinate from either mouse or touch event
+      const xPosition = e.touches ? e.touches[0].clientX : e.clientX;
+      
+      // Convert x position to rotation value (0 to 2π)
+      const normalizedRotation = (xPosition / window.innerWidth) * Math.PI * 2;
+      
+      // Apply smooth transition
+      setRotationValue(current => {
+        const diff = normalizedRotation - current;
+        return current + diff * 0.1;
+      });
     };
 
-    const handleTouchMove = (e) => {
-      e.preventDefault(); // Prevent scrolling while touching
-      const touchX = (e.touches[0].clientX / screenSize.width) * Math.PI * 2;
-      setTouchPosition(touchX);
-    };
-
+    // Add appropriate event listener based on device type
     if (isMobile) {
-      window.addEventListener("touchmove", handleTouchMove, { passive: false });
-      window.addEventListener("touchstart", handleTouchMove, { passive: false });
+      window.addEventListener("touchmove", handleMove);
     } else {
-      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousemove", handleMove);
     }
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchstart", handleTouchMove);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("touchmove", handleMove);
     };
-  }, [isMobile, screenSize]);
-
-  // Calculate responsive camera values
-  const getCameraSettings = () => {
-    const width = screenSize.width;
-    if (width < 480) {
-      return { position: [3, 2, 2], fov: 40 };
-    } else if (width < 768) {
-      return { position: [4, 2, 3], fov: 35 };
-    } else if (width < 1024) {
-      return { position: [15, 3, 4], fov: 30 };
-    } else {
-      return { position: [20, 3, 5], fov: 25 };
-    }
-  };
-
-  const cameraSettings = getCameraSettings();
+  }, [isMobile]);
 
   return (
     <Canvas
       frameloop="demand"
       shadows
-      dpr={[1, Math.min(2, window.devicePixelRatio)]} // Optimize for device pixel ratio
       camera={{
-        position: cameraSettings.position,
-        fov: cameraSettings.fov,
+        position: isMobile ? [4, 2, 3] : [20, 3, 5],
+        fov: isMobile ? 35 : 25,
       }}
       gl={{ preserveDrawingBuffer: true }}
     >
@@ -150,16 +95,11 @@ const SpaceCanvas = () => {
         <OrbitControls
           enableZoom={false}
           enablePan={false}
+          enableRotate={false}  // Disable OrbitControls rotation
           maxPolarAngle={Math.PI / 2}
           minPolarAngle={Math.PI / 2}
-          dampingFactor={0.05} // Added smooth damping
-          rotateSpeed={isMobile ? 0.5 : 1} // Adjusted rotation speed for mobile
         />
-        <Space 
-          isMobile={isMobile}
-          mousePosition={mousePosition}
-          touchPosition={touchPosition}
-        />
+        <Space isMobile={isMobile} rotationValue={rotationValue} />
       </Suspense>
       <Preload all />
     </Canvas>
