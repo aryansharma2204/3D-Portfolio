@@ -17,18 +17,18 @@ const Space = ({ isMobile, mousePosition }) => {
     <mesh>
       <hemisphereLight intensity={0.15} groundColor="black" />
       <spotLight
-        position={[-20, 50, 10]}
+        position={isMobile ? [-10, 30, 5] : [-20, 50, 10]} // Adjusted for mobile
         angle={0.12}
         penumbra={1}
         intensity={1}
         castShadow
         shadow-mapSize={1024}
       />
-      <pointLight intensity={1} />
+      <pointLight intensity={isMobile ? 0.7 : 1} /> {/* Adjust point light for mobile */}
       <primitive
         object={space.scene}
-        scale={isMobile ? 0.5 : 0.25} // Smaller scale
-        position={isMobile ? [-2, -1, -2.2] : [1, -1.4, 0]} // Slightly moved left in X-axis
+        scale={isMobile ? 0.5 : 0.25} // Smaller scale for mobile
+        position={isMobile ? [-2, -1, -2.2] : [1, -1.4, 0]} // Adjusted position for mobile
         rotation={[0, 0, 0]} // Initial rotation (will be updated dynamically)
       />
     </mesh>
@@ -77,7 +77,10 @@ const SpaceCanvas = () => {
       frameloop="demand"
       shadows
       dpr={[1, 2]}
-      camera={{ position: [20, 3, 5], fov: 25 }}
+      camera={{
+        position: isMobile ? [6, 3, 4] : [20, 3, 5], // Adjust camera position for mobile
+        fov: 25,
+      }}
       gl={{ preserveDrawingBuffer: true }}
     >
       <Suspense fallback={<CanvasLoader />}>
