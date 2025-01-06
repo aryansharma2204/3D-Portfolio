@@ -3,8 +3,9 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 import CanvasLoader from "../Loader";
 
-const Space = ({ isMobile, rotationValue }) => {
-  const space = useGLTF("./space-shuttle/scene.gltf");
+const Space = ({ isMobile, rotationValue, scaleFactor }) => {
+  // Updated to load space-shuttle.glb
+  const space = useGLTF("./space-shuttle.glb");
 
   useFrame(() => {
     space.scene.rotation.y += (rotationValue - space.scene.rotation.y) * 0.1;
@@ -30,7 +31,7 @@ const Space = ({ isMobile, rotationValue }) => {
       <pointLight intensity={2} />
       <primitive
         object={space.scene}
-        scale={isMobile ? 0.07 : 0.25}
+        scale={scaleFactor}
         position={isMobile ? [0, -0.5, -1.5] : [1, -1.4, 0]}
       />
     </mesh>
@@ -41,6 +42,7 @@ const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
   const [isTouching, setIsTouching] = useState(false);
+  const [scaleFactor, setScaleFactor] = useState(0.25); // Default scale
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -51,6 +53,17 @@ const SpaceCanvas = () => {
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const scale = window.innerWidth / 1500; // Adjust 1500 to any reference value
+      setScaleFactor(scale);
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
   }, []);
 
   useEffect(() => {
@@ -124,7 +137,7 @@ const SpaceCanvas = () => {
           maxPolarAngle={Math.PI / 2}
           minPolarAngle={Math.PI / 2}
         />
-        <Space isMobile={isMobile} rotationValue={rotationValue} />
+        <Space isMobile={isMobile} rotationValue={rotationValue} scaleFactor={scaleFactor} />
       </Suspense>
       <Preload all />
     </Canvas>
