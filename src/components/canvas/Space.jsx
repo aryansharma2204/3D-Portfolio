@@ -40,11 +40,13 @@ const Space = ({ isMobile, rotationValue, scaleFactor }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
-  const [touchStartY, setTouchStartY] = useState(null);
-  const [touchStartX, setTouchStartX] = useState(null);
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const [scaleFactor, setScaleFactor] = useState(0.25);
-  const isRotatingRef = useRef(false);
+  const gestureStarted = useRef(false);
+  const lastTouchX = useRef(null);
+  const rotationSpeed = useRef(0);
+  const rafId = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -59,7 +61,7 @@ const SpaceCanvas = () => {
   useEffect(() => {
     const updateScale = () => {
       const scale = window.innerWidth / 1500;
-      setScaleFactor(Math.max(0.2, Math.min(scale, 0.4))); // Limit scale between 0.2 and 0.4
+      setScaleFactor(Math.max(0.2, Math.min(scale, 0.4)));
     };
 
     updateScale();
@@ -67,6 +69,7 @@ const SpaceCanvas = () => {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
+  // Handle mouse movement for desktop
   const handleMouseMove = (e) => {
     if (!isMobile) {
       const normalizedRotation = ((e.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
@@ -74,80 +77,108 @@ const SpaceCanvas = () => {
     }
   };
 
+  // Smooth rotation animation
+  useEffect(() => {
+    const animateRotation = () => {
+      if (Math.abs(rotationSpeed.current) > 0.001) {
+        setRotationValue(prev => prev + rotationSpeed.current);
+        rotationSpeed.current *= 0.95; // Decay factor
+        rafId.current = requestAnimationFrame(animateRotation);
+      }
+    };
+
+    return () => {
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+      }
+    };
+  }, []);
+
   const handleTouchStart = (e) => {
-    if (!canvasRef.current) return;
+    if (!containerRef.current) return;
     
     const touch = e.touches[0];
-    const canvasBounds = canvasRef.current.getBoundingClientRect();
+    const containerBounds = containerRef.current.getBoundingClientRect();
     
-    // Check if touch is within canvas bounds
     if (
-      touch.clientX >= canvasBounds.left &&
-      touch.clientX <= canvasBounds.right &&
-      touch.clientY >= canvasBounds.top &&
-      touch.clientY <= canvasBounds.bottom
+      touch.clientX >= containerBounds.left &&
+      touch.clientX <= containerBounds.right &&
+      touch.clientY >= containerBounds.top &&
+      touch.clientY <= containerBounds.bottom
     ) {
-      setTouchStartX(touch.clientX);
-      setTouchStartY(touch.clientY);
-      isRotatingRef.current = false;
+      gestureStarted.current = true;
+      lastTouchX.current = touch.clientX;
+      rotationSpeed.current = 0;
     }
   };
 
   const handleTouchMove = (e) => {
-    if (!touchStartX || !touchStartY || !canvasRef.current) return;
+    if (!gestureStarted.current || !lastTouchX.current) return;
 
     const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-
-    // If horizontal movement is greater than vertical, assume rotation
-    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      isRotatingRef.current = true;
-      const normalizedRotation = ((touch.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
-      setRotationValue(normalizedRotation);
-      e.preventDefault(); // Prevent scrolling only during rotation
-    } else if (!isRotatingRef.current) {
-      // If we haven't started rotating, allow normal scroll
-      return;
-    }
+    const deltaX = touch.clientX - lastTouchX.current;
+    
+    // Update rotation speed based on touch movement
+    rotationSpeed.current = deltaX * 0.01;
+    
+    // Update rotation value
+    const newRotation = rotationValue + rotationSpeed.current;
+    setRotationValue(newRotation);
+    
+    lastTouchX.current = touch.clientX;
   };
 
   const handleTouchEnd = () => {
-    setTouchStartX(null);
-    setTouchStartY(null);
-    isRotatingRef.current = false;
+    gestureStarted.current = false;
+    lastTouchX.current = null;
+    
+    // Start rotation animation
+    if (Math.abs(rotationSpeed.current) > 0.001) {
+      rafId.current = requestAnimationFrame(function animate() {
+        setRotationValue(prev => prev + rotationSpeed.current);
+        rotationSpeed.current *= 0.95;
+        if (Math.abs(rotationSpeed.current) > 0.001) {
+          rafId.current = requestAnimationFrame(animate);
+        }
+      });
+    }
   };
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!containerRef.current) return;
 
-    const canvas = canvasRef.current;
+    const container = containerRef.current;
 
     if (isMobile) {
-      canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
-      canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-      canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
+      container.addEventListener("touchstart", handleTouchStart, { passive: true });
+      container.addEventListener("touchmove", handleTouchMove, { passive: true });
+      container.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMouseMove);
     }
 
     return () => {
       if (isMobile) {
-        canvas.removeEventListener("touchstart", handleTouchStart);
-        canvas.removeEventListener("touchmove", handleTouchMove);
-        canvas.removeEventListener("touchend", handleTouchEnd);
+        container.removeEventListener("touchstart", handleTouchStart);
+        container.removeEventListener("touchmove", handleTouchMove);
+        container.removeEventListener("touchend", handleTouchEnd);
       } else {
         window.removeEventListener("mousemove", handleMouseMove);
       }
     };
-  }, [isMobile, touchStartX, touchStartY]);
+  }, [isMobile, rotationValue]);
 
   return (
-    <div style={{ 
-      touchAction: "pan-y", // Enable vertical scrolling by default
-      height: "100vh",
-      width: "100%"
-    }}>
+    <div 
+      ref={containerRef}
+      style={{
+        height: isMobile ? "50vh" : "100vh", // Reduced height on mobile
+        width: "100%",
+        touchAction: "pan-y", // Enable vertical scrolling
+        position: "relative",
+        overflowX: "hidden"
+      }}
+    >
       <Canvas
         ref={canvasRef}
         frameLoop="demand"
