@@ -4,7 +4,6 @@ import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 import CanvasLoader from "../Loader";
 
 const Space = ({ isMobile, rotationValue, scaleFactor }) => {
-  // Updated to load space-shuttle.glb
   const space = useGLTF("./space-shuttle.glb");
 
   useFrame(() => {
@@ -42,8 +41,10 @@ const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
   const [isTouching, setIsTouching] = useState(false);
-  const [scaleFactor, setScaleFactor] = useState(0.25); // Default scale
+  const [initialTouchX, setInitialTouchX] = useState(null);
+  const [scaleFactor, setScaleFactor] = useState(0.25);
   const canvasRef = useRef(null);
+  const touchStartTimeRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -57,7 +58,7 @@ const SpaceCanvas = () => {
 
   useEffect(() => {
     const updateScale = () => {
-      const scale = window.innerWidth / 1500; // Adjust 1500 to any reference value
+      const scale = window.innerWidth / 1500;
       setScaleFactor(scale);
     };
 
@@ -67,54 +68,70 @@ const SpaceCanvas = () => {
   }, []);
 
   useEffect(() => {
-    const handleMove = (e) => {
-      const xPosition = e.touches ? e.touches[0].clientX : e.clientX;
-      const normalizedRotation = ((xPosition / window.innerWidth) - 0.5) * Math.PI * 2;
+    const handleMouseMove = (e) => {
+      const normalizedRotation = ((e.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
       setRotationValue(normalizedRotation);
     };
 
     const handleTouchStart = (e) => {
+      const touch = e.touches[0];
       const canvasBounds = canvasRef.current.getBoundingClientRect();
-      const isTouchInsideCanvas =
-        e.touches[0].clientX >= canvasBounds.left &&
-        e.touches[0].clientX <= canvasBounds.right &&
-        e.touches[0].clientY >= canvasBounds.top &&
-        e.touches[0].clientY <= canvasBounds.bottom;
-
-      if (isTouchInsideCanvas) {
+      
+      // Check if touch is within canvas bounds
+      if (
+        touch.clientX >= canvasBounds.left &&
+        touch.clientX <= canvasBounds.right &&
+        touch.clientY >= canvasBounds.top &&
+        touch.clientY <= canvasBounds.bottom
+      ) {
+        setInitialTouchX(touch.clientX);
         setIsTouching(true);
-        handleMove(e); // Optionally, trigger move on start for initial position
+        touchStartTimeRef.current = Date.now();
       }
     };
 
     const handleTouchMove = (e) => {
-      if (isTouching) {
-        handleMove(e);
-        e.preventDefault();  // Prevent scrolling when touching and interacting with the canvas
+      if (!isTouching || !initialTouchX) return;
+
+      const touch = e.touches[0];
+      const touchDuration = Date.now() - touchStartTimeRef.current;
+      const touchDelta = Math.abs(touch.clientX - initialTouchX);
+
+      // If touch movement is primarily horizontal and within the first 100ms,
+      // assume it's intended for rotation
+      if (touchDuration < 100 && touchDelta > 10) {
+        const normalizedRotation = ((touch.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
+        setRotationValue(normalizedRotation);
+        e.preventDefault(); // Only prevent default for intentional rotation
       }
     };
 
     const handleTouchEnd = () => {
-      setIsTouching(false);  // Reset flag when touch ends
+      setIsTouching(false);
+      setInitialTouchX(null);
+      touchStartTimeRef.current = null;
     };
 
     if (isMobile) {
-      window.addEventListener("touchstart", handleTouchStart, { passive: false });
-      window.addEventListener("touchmove", handleTouchMove, { passive: false });
-      window.addEventListener("touchend", handleTouchEnd, { passive: true });
+      const canvas = canvasRef.current;
+      canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
+      canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+      canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
-      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mousemove", handleMouseMove);
     }
 
     return () => {
-      window.removeEventListener("mousemove", handleMove);
-      if (isMobile) {
-        window.removeEventListener("touchstart", handleTouchStart);
-        window.removeEventListener("touchmove", handleTouchMove);
-        window.removeEventListener("touchend", handleTouchEnd);
+      if (isMobile && canvasRef.current) {
+        const canvas = canvasRef.current;
+        canvas.removeEventListener("touchstart", handleTouchStart);
+        canvas.removeEventListener("touchmove", handleTouchMove);
+        canvas.removeEventListener("touchend", handleTouchEnd);
+      } else {
+        window.removeEventListener("mousemove", handleMouseMove);
       }
     };
-  }, [isMobile, isTouching]);
+  }, [isMobile, isTouching, initialTouchX]);
 
   return (
     <Canvas
