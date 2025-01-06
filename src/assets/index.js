@@ -7,7 +7,6 @@ import github from "./github.png";
 import itchio from "./itchio.png";
 import menu from "./menu.svg";
 import close from "./close.svg";
-
 import css from "./tech/css.png";
 import docker from "./tech/docker.png";
 import figma from "./tech/figma.png";
@@ -21,19 +20,11 @@ import redux from "./tech/redux.png";
 import tailwind from "./tech/tailwind.png";
 import typescript from "./tech/typescript.png";
 import threejs from "./tech/threejs.svg";
-
 import NCRTCLOGO from "./company/NCRTCLOGO.png";
 import PW from "./company/PW.png";
 import AsteroidsShooter from "./AsteroidsShooter.jpg";
 import youtubeLogo from "../assets/youtubeLogo.png";
 import linkedinLogo from "../assets/linkedinLogo.png";
-
-
-
-
-import carrent from "./carrent.png";
-import jobit from "./jobit.png";
-import tripguide from "./tripguide.png";
 
 export {
   logo,
@@ -63,7 +54,4 @@ export {
   AsteroidsShooter,
   youtubeLogo,
   linkedinLogo,
-  carrent,
-  jobit,
-  tripguide,
 };
