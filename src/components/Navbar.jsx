@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
 import { styles } from "../styles";
 import { navLinks } from "../constants";
-import { menu, close } from "../assets"; // Removed logo import
+import { menu, close, youtubeLogo, linkedinLogo } from "../assets"; // Import the logos
 
 const Navbar = () => {
   const [active, setActive] = useState("");
@@ -34,6 +33,7 @@ const Navbar = () => {
       }`}
     >
       <div className="w-full flex justify-between items-center max-w-7xl mx-auto">
+        {/* Left: Brand Logo */}
         <Link
           to="/"
           className="flex items-center gap-2"
@@ -47,6 +47,7 @@ const Navbar = () => {
           </p>
         </Link>
 
+        {/* Middle: Nav Links */}
         <ul className="list-none hidden sm:flex flex-row gap-10">
           {navLinks.map((nav) => (
             <li
@@ -61,35 +62,44 @@ const Navbar = () => {
           ))}
         </ul>
 
-        <div className="sm:hidden flex flex-1 justify-end items-center">
-          <img
-            src={toggle ? close : menu}
-            alt="menu"
-            className="w-[28px] h-[28px] object-contain"
-            onClick={() => setToggle(!toggle)}
-          />
-
-          <div
-            className={`${
-              !toggle ? "hidden" : "flex"
-            } p-6 black-gradient absolute top-20 right-0 mx-4 my-2 min-w-[140px] z-10 rounded-xl`}
+        {/* Right: Social Media Links */}
+        <div className="flex items-center gap-4">
+          {/* YouTube */}
+          <a
+            href="https://www.youtube.com/@aryannsharma22"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:scale-110 transition-transform duration-200"
           >
-            <ul className="list-none flex justify-end items-start flex-1 flex-col gap-4">
-              {navLinks.map((nav) => (
-                <li
-                  key={nav.id}
-                  className={`font-poppins font-medium cursor-pointer text-[16px] ${
-                    active === nav.title ? "text-white" : "text-secondary"
-                  }`}
-                  onClick={() => {
-                    setToggle(!toggle);
-                    setActive(nav.title);
-                  }}
-                >
-                  <a href={`#${nav.id}`}>{nav.title}</a>
-                </li>
-              ))}
-            </ul>
+            <img
+              src={youtubeLogo}
+              alt="YouTube"
+              className="w-6 h-6 object-contain"
+            />
+          </a>
+
+          {/* LinkedIn */}
+          <a
+            href="https://www.linkedin.com/in/aryansharmadbit/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:scale-110 transition-transform duration-200"
+          >
+            <img
+              src={linkedinLogo}
+              alt="LinkedIn"
+              className="w-6 h-6 object-contain"
+            />
+          </a>
+
+          {/* Hamburger Menu */}
+          <div className="sm:hidden flex flex-1 justify-end items-center">
+            <img
+              src={toggle ? close : menu}
+              alt="menu"
+              className="w-[28px] h-[28px] object-contain"
+              onClick={() => setToggle(!toggle)}
+            />
           </div>
         </div>
       </div>
