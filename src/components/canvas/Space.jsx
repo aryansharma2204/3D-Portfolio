@@ -40,11 +40,11 @@ const Space = ({ isMobile, rotationValue, scaleFactor }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
-  const [isTouching, setIsTouching] = useState(false);
-  const [initialTouchX, setInitialTouchX] = useState(null);
-  const [scaleFactor, setScaleFactor] = useState(0.25);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [touchStartX, setTouchStartX] = useState(null);
   const canvasRef = useRef(null);
-  const touchStartTimeRef = useRef(null);
+  const [scaleFactor, setScaleFactor] = useState(0.25);
+  const isRotatingRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -59,7 +59,7 @@ const SpaceCanvas = () => {
   useEffect(() => {
     const updateScale = () => {
       const scale = window.innerWidth / 1500;
-      setScaleFactor(scale);
+      setScaleFactor(Math.max(0.2, Math.min(scale, 0.4))); // Limit scale between 0.2 and 0.4
     };
 
     updateScale();
@@ -67,53 +67,63 @@ const SpaceCanvas = () => {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
-  useEffect(() => {
-    const handleMouseMove = (e) => {
+  const handleMouseMove = (e) => {
+    if (!isMobile) {
       const normalizedRotation = ((e.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
       setRotationValue(normalizedRotation);
-    };
+    }
+  };
 
-    const handleTouchStart = (e) => {
-      const touch = e.touches[0];
-      const canvasBounds = canvasRef.current.getBoundingClientRect();
-      
-      // Check if touch is within canvas bounds
-      if (
-        touch.clientX >= canvasBounds.left &&
-        touch.clientX <= canvasBounds.right &&
-        touch.clientY >= canvasBounds.top &&
-        touch.clientY <= canvasBounds.bottom
-      ) {
-        setInitialTouchX(touch.clientX);
-        setIsTouching(true);
-        touchStartTimeRef.current = Date.now();
-      }
-    };
+  const handleTouchStart = (e) => {
+    if (!canvasRef.current) return;
+    
+    const touch = e.touches[0];
+    const canvasBounds = canvasRef.current.getBoundingClientRect();
+    
+    // Check if touch is within canvas bounds
+    if (
+      touch.clientX >= canvasBounds.left &&
+      touch.clientX <= canvasBounds.right &&
+      touch.clientY >= canvasBounds.top &&
+      touch.clientY <= canvasBounds.bottom
+    ) {
+      setTouchStartX(touch.clientX);
+      setTouchStartY(touch.clientY);
+      isRotatingRef.current = false;
+    }
+  };
 
-    const handleTouchMove = (e) => {
-      if (!isTouching || !initialTouchX) return;
+  const handleTouchMove = (e) => {
+    if (!touchStartX || !touchStartY || !canvasRef.current) return;
 
-      const touch = e.touches[0];
-      const touchDuration = Date.now() - touchStartTimeRef.current;
-      const touchDelta = Math.abs(touch.clientX - initialTouchX);
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
 
-      // If touch movement is primarily horizontal and within the first 100ms,
-      // assume it's intended for rotation
-      if (touchDuration < 100 && touchDelta > 10) {
-        const normalizedRotation = ((touch.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
-        setRotationValue(normalizedRotation);
-        e.preventDefault(); // Only prevent default for intentional rotation
-      }
-    };
+    // If horizontal movement is greater than vertical, assume rotation
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      isRotatingRef.current = true;
+      const normalizedRotation = ((touch.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
+      setRotationValue(normalizedRotation);
+      e.preventDefault(); // Prevent scrolling only during rotation
+    } else if (!isRotatingRef.current) {
+      // If we haven't started rotating, allow normal scroll
+      return;
+    }
+  };
 
-    const handleTouchEnd = () => {
-      setIsTouching(false);
-      setInitialTouchX(null);
-      touchStartTimeRef.current = null;
-    };
+  const handleTouchEnd = () => {
+    setTouchStartX(null);
+    setTouchStartY(null);
+    isRotatingRef.current = false;
+  };
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
 
     if (isMobile) {
-      const canvas = canvasRef.current;
       canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
       canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
       canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
@@ -122,8 +132,7 @@ const SpaceCanvas = () => {
     }
 
     return () => {
-      if (isMobile && canvasRef.current) {
-        const canvas = canvasRef.current;
+      if (isMobile) {
         canvas.removeEventListener("touchstart", handleTouchStart);
         canvas.removeEventListener("touchmove", handleTouchMove);
         canvas.removeEventListener("touchend", handleTouchEnd);
@@ -131,33 +140,39 @@ const SpaceCanvas = () => {
         window.removeEventListener("mousemove", handleMouseMove);
       }
     };
-  }, [isMobile, isTouching, initialTouchX]);
+  }, [isMobile, touchStartX, touchStartY]);
 
   return (
-    <Canvas
-      ref={canvasRef}
-      frameLoop="demand"
-      shadows
-      camera={{
-        position: isMobile ? [0, 0, 5] : [20, 3, 5],
-        fov: isMobile ? 50 : 25,
-        near: 0.1,
-        far: 200
-      }}
-      gl={{ preserveDrawingBuffer: true }}
-    >
-      <Suspense fallback={<CanvasLoader />}>
-        <OrbitControls
-          enableZoom={false}
-          enablePan={false}
-          enableRotate={false}
-          maxPolarAngle={Math.PI / 2}
-          minPolarAngle={Math.PI / 2}
-        />
-        <Space isMobile={isMobile} rotationValue={rotationValue} scaleFactor={scaleFactor} />
-      </Suspense>
-      <Preload all />
-    </Canvas>
+    <div style={{ 
+      touchAction: "pan-y", // Enable vertical scrolling by default
+      height: "100vh",
+      width: "100%"
+    }}>
+      <Canvas
+        ref={canvasRef}
+        frameLoop="demand"
+        shadows
+        camera={{
+          position: isMobile ? [0, 0, 5] : [20, 3, 5],
+          fov: isMobile ? 50 : 25,
+          near: 0.1,
+          far: 200
+        }}
+        gl={{ preserveDrawingBuffer: true }}
+      >
+        <Suspense fallback={<CanvasLoader />}>
+          <OrbitControls
+            enableZoom={false}
+            enablePan={false}
+            enableRotate={false}
+            maxPolarAngle={Math.PI / 2}
+            minPolarAngle={Math.PI / 2}
+          />
+          <Space isMobile={isMobile} rotationValue={rotationValue} scaleFactor={scaleFactor} />
+        </Suspense>
+        <Preload all />
+      </Canvas>
+    </div>
   );
 };
 
