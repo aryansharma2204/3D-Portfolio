@@ -31,7 +31,7 @@ const Space = ({ isMobile, rotationValue, scaleFactor }) => {
       <primitive
         object={space.scene}
         scale={scaleFactor}
-        position={isMobile ? [0, 0.5, -1.5] : [1, -1.4, 0]} // Adjusted Y position for mobile
+        position={isMobile ? [0, -0.5, -1.5] : [1, -1.4, 0]}
       />
     </mesh>
   );
@@ -40,13 +40,11 @@ const Space = ({ isMobile, rotationValue, scaleFactor }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
-  const canvasRef = useRef(null);
-  const containerRef = useRef(null);
+  const [isTouching, setIsTouching] = useState(false);
+  const [initialTouchX, setInitialTouchX] = useState(null);
   const [scaleFactor, setScaleFactor] = useState(0.25);
-  const gestureStarted = useRef(false);
-  const lastTouchX = useRef(null);
-  const rotationSpeed = useRef(0);
-  const rafId = useRef(null);
+  const canvasRef = useRef(null);
+  const touchStartTimeRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -61,7 +59,7 @@ const SpaceCanvas = () => {
   useEffect(() => {
     const updateScale = () => {
       const scale = window.innerWidth / 1500;
-      setScaleFactor(Math.max(0.2, Math.min(scale, 0.4)));
+      setScaleFactor(scale);
     };
 
     updateScale();
@@ -69,136 +67,97 @@ const SpaceCanvas = () => {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
-  const handleMouseMove = (e) => {
-    if (!isMobile) {
+  useEffect(() => {
+    const handleMouseMove = (e) => {
       const normalizedRotation = ((e.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
       setRotationValue(normalizedRotation);
-    }
-  };
+    };
 
-  useEffect(() => {
-    const animateRotation = () => {
-      if (Math.abs(rotationSpeed.current) > 0.001) {
-        setRotationValue(prev => prev + rotationSpeed.current);
-        rotationSpeed.current *= 0.95;
-        rafId.current = requestAnimationFrame(animateRotation);
+    const handleTouchStart = (e) => {
+      const touch = e.touches[0];
+      const canvasBounds = canvasRef.current.getBoundingClientRect();
+      
+      // Check if touch is within canvas bounds
+      if (
+        touch.clientX >= canvasBounds.left &&
+        touch.clientX <= canvasBounds.right &&
+        touch.clientY >= canvasBounds.top &&
+        touch.clientY <= canvasBounds.bottom
+      ) {
+        setInitialTouchX(touch.clientX);
+        setIsTouching(true);
+        touchStartTimeRef.current = Date.now();
       }
     };
 
-    return () => {
-      if (rafId.current) {
-        cancelAnimationFrame(rafId.current);
+    const handleTouchMove = (e) => {
+      if (!isTouching || !initialTouchX) return;
+
+      const touch = e.touches[0];
+      const touchDuration = Date.now() - touchStartTimeRef.current;
+      const touchDelta = Math.abs(touch.clientX - initialTouchX);
+
+      // If touch movement is primarily horizontal and within the first 100ms,
+      // assume it's intended for rotation
+      if (touchDuration < 100 && touchDelta > 10) {
+        const normalizedRotation = ((touch.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
+        setRotationValue(normalizedRotation);
+        e.preventDefault(); // Only prevent default for intentional rotation
       }
     };
-  }, []);
 
-  const handleTouchStart = (e) => {
-    if (!containerRef.current) return;
-    
-    const touch = e.touches[0];
-    const containerBounds = containerRef.current.getBoundingClientRect();
-    
-    if (
-      touch.clientX >= containerBounds.left &&
-      touch.clientX <= containerBounds.right &&
-      touch.clientY >= containerBounds.top &&
-      touch.clientY <= containerBounds.bottom
-    ) {
-      gestureStarted.current = true;
-      lastTouchX.current = touch.clientX;
-      rotationSpeed.current = 0;
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (!gestureStarted.current || !lastTouchX.current) return;
-
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - lastTouchX.current;
-    
-    rotationSpeed.current = deltaX * 0.01;
-    
-    const newRotation = rotationValue + rotationSpeed.current;
-    setRotationValue(newRotation);
-    
-    lastTouchX.current = touch.clientX;
-  };
-
-  const handleTouchEnd = () => {
-    gestureStarted.current = false;
-    lastTouchX.current = null;
-    
-    if (Math.abs(rotationSpeed.current) > 0.001) {
-      rafId.current = requestAnimationFrame(function animate() {
-        setRotationValue(prev => prev + rotationSpeed.current);
-        rotationSpeed.current *= 0.95;
-        if (Math.abs(rotationSpeed.current) > 0.001) {
-          rafId.current = requestAnimationFrame(animate);
-        }
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const container = containerRef.current;
+    const handleTouchEnd = () => {
+      setIsTouching(false);
+      setInitialTouchX(null);
+      touchStartTimeRef.current = null;
+    };
 
     if (isMobile) {
-      container.addEventListener("touchstart", handleTouchStart, { passive: true });
-      container.addEventListener("touchmove", handleTouchMove, { passive: true });
-      container.addEventListener("touchend", handleTouchEnd, { passive: true });
+      const canvas = canvasRef.current;
+      canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
+      canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+      canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMouseMove);
     }
 
     return () => {
-      if (isMobile) {
-        container.removeEventListener("touchstart", handleTouchStart);
-        container.removeEventListener("touchmove", handleTouchMove);
-        container.removeEventListener("touchend", handleTouchEnd);
+      if (isMobile && canvasRef.current) {
+        const canvas = canvasRef.current;
+        canvas.removeEventListener("touchstart", handleTouchStart);
+        canvas.removeEventListener("touchmove", handleTouchMove);
+        canvas.removeEventListener("touchend", handleTouchEnd);
       } else {
         window.removeEventListener("mousemove", handleMouseMove);
       }
     };
-  }, [isMobile, rotationValue]);
+  }, [isMobile, isTouching, initialTouchX]);
 
   return (
-    <div 
-      ref={containerRef}
-      style={{
-        height: isMobile ? "60vh" : "100vh", // Slightly increased height for mobile
-        width: "100%",
-        touchAction: "pan-y",
-        position: "relative",
-        overflowX: "hidden",
+    <Canvas
+      ref={canvasRef}
+      frameLoop="demand"
+      shadows
+      camera={{
+        position: isMobile ? [0, 0, 5] : [20, 3, 5],
+        fov: isMobile ? 50 : 25,
+        near: 0.1,
+        far: 200
       }}
+      gl={{ preserveDrawingBuffer: true }}
     >
-      <Canvas
-        ref={canvasRef}
-        frameLoop="demand"
-        shadows
-        camera={{
-          position: isMobile ? [0, 0, 4] : [20, 3, 5], // Adjusted camera position for mobile
-          fov: isMobile ? 45 : 25, // Adjusted FOV for mobile
-          near: 0.1,
-          far: 200
-        }}
-        gl={{ preserveDrawingBuffer: true }}
-      >
-        <Suspense fallback={<CanvasLoader />}>
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            enableRotate={false}
-            maxPolarAngle={Math.PI / 2}
-            minPolarAngle={Math.PI / 2}
-          />
-          <Space isMobile={isMobile} rotationValue={rotationValue} scaleFactor={scaleFactor} />
-        </Suspense>
-        <Preload all />
-      </Canvas>
-    </div>
+      <Suspense fallback={<CanvasLoader />}>
+        <OrbitControls
+          enableZoom={false}
+          enablePan={false}
+          enableRotate={false}
+          maxPolarAngle={Math.PI / 2}
+          minPolarAngle={Math.PI / 2}
+        />
+        <Space isMobile={isMobile} rotationValue={rotationValue} scaleFactor={scaleFactor} />
+      </Suspense>
+      <Preload all />
+    </Canvas>
   );
 };
 
