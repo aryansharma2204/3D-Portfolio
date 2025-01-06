@@ -10,18 +10,24 @@ const Space = ({ isMobile, rotationValue }) => {
     space.scene.rotation.y += (rotationValue - space.scene.rotation.y) * 0.1;
   });
 
+  const lightPosition = [
+    Math.cos(rotationValue) * 2,
+    1,
+    Math.sin(rotationValue) * 2
+  ];
+
   return (
     <mesh>
-      <hemisphereLight intensity={0.15} groundColor="black" />
+      <hemisphereLight intensity={0.3} groundColor="black" />
       <spotLight
-        position={isMobile ? [-10, 50, 10] : [-20, 50, 10]}
+        position={lightPosition}
         angle={0.12}
         penumbra={1}
-        intensity={1}
+        intensity={2}
         castShadow
         shadow-mapSize={1024}
       />
-      <pointLight intensity={1} />
+      <pointLight intensity={2} />
       <primitive
         object={space.scene}
         scale={isMobile ? 0.07 : 0.25}
@@ -34,14 +40,14 @@ const Space = ({ isMobile, rotationValue }) => {
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [rotationValue, setRotationValue] = useState(0);
-  const [isTouching, setIsTouching] = useState(false); // Flag to track touch status
-  const canvasRef = useRef(null); // Reference to the canvas
+  const [isTouching, setIsTouching] = useState(false);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -50,38 +56,38 @@ const SpaceCanvas = () => {
   useEffect(() => {
     const handleMove = (e) => {
       const xPosition = e.touches ? e.touches[0].clientX : e.clientX;
-      const normalizedRotation = ((xPosition / window.innerWidth) - 0.5) * Math.PI;
+      const normalizedRotation = ((xPosition / window.innerWidth) - 0.5) * Math.PI * 2;
       setRotationValue(normalizedRotation);
     };
 
     const handleTouchStart = (e) => {
       const canvasBounds = canvasRef.current.getBoundingClientRect();
-      const isTouchInsideCanvas = 
-        e.touches[0].clientX >= canvasBounds.left && 
+      const isTouchInsideCanvas =
+        e.touches[0].clientX >= canvasBounds.left &&
         e.touches[0].clientX <= canvasBounds.right &&
         e.touches[0].clientY >= canvasBounds.top &&
         e.touches[0].clientY <= canvasBounds.bottom;
 
       if (isTouchInsideCanvas) {
-        setIsTouching(true); // User starts touching inside canvas, set flag to true
+        setIsTouching(true);
         handleMove(e); // Optionally, trigger move on start for initial position
       }
     };
 
     const handleTouchMove = (e) => {
       if (isTouching) {
-        handleMove(e); // Move only if the user is actively touching inside the canvas
-        e.preventDefault(); // This prevents scrolling when interacting with the canvas
+        handleMove(e);
+        e.preventDefault();  // Prevent scrolling when touching and interacting with the canvas
       }
     };
 
     const handleTouchEnd = () => {
-      setIsTouching(false); // Reset the flag when touch ends
+      setIsTouching(false);  // Reset flag when touch ends
     };
 
     if (isMobile) {
-      window.addEventListener("touchstart", handleTouchStart, { passive: false }); // Use passive: false to prevent default
-      window.addEventListener("touchmove", handleTouchMove, { passive: false }); // passive: false allows us to prevent the default scroll
+      window.addEventListener("touchstart", handleTouchStart, { passive: false });
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
       window.addEventListener("touchend", handleTouchEnd, { passive: true });
     } else {
       window.addEventListener("mousemove", handleMove);
@@ -99,7 +105,7 @@ const SpaceCanvas = () => {
 
   return (
     <Canvas
-      ref={canvasRef} // Attach the ref to the Canvas
+      ref={canvasRef}
       frameLoop="demand"
       shadows
       camera={{
