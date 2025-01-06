@@ -31,7 +31,7 @@ const Space = ({ isMobile, rotationValue, scaleFactor }) => {
       <primitive
         object={space.scene}
         scale={scaleFactor}
-        position={isMobile ? [0, -0.5, -1.5] : [1, -1.4, 0]}
+        position={isMobile ? [0, 0.5, -1.5] : [1, -1.4, 0]} // Adjusted Y position for mobile
       />
     </mesh>
   );
@@ -69,7 +69,6 @@ const SpaceCanvas = () => {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
-  // Handle mouse movement for desktop
   const handleMouseMove = (e) => {
     if (!isMobile) {
       const normalizedRotation = ((e.clientX / window.innerWidth) - 0.5) * Math.PI * 2;
@@ -77,12 +76,11 @@ const SpaceCanvas = () => {
     }
   };
 
-  // Smooth rotation animation
   useEffect(() => {
     const animateRotation = () => {
       if (Math.abs(rotationSpeed.current) > 0.001) {
         setRotationValue(prev => prev + rotationSpeed.current);
-        rotationSpeed.current *= 0.95; // Decay factor
+        rotationSpeed.current *= 0.95;
         rafId.current = requestAnimationFrame(animateRotation);
       }
     };
@@ -118,10 +116,8 @@ const SpaceCanvas = () => {
     const touch = e.touches[0];
     const deltaX = touch.clientX - lastTouchX.current;
     
-    // Update rotation speed based on touch movement
     rotationSpeed.current = deltaX * 0.01;
     
-    // Update rotation value
     const newRotation = rotationValue + rotationSpeed.current;
     setRotationValue(newRotation);
     
@@ -132,7 +128,6 @@ const SpaceCanvas = () => {
     gestureStarted.current = false;
     lastTouchX.current = null;
     
-    // Start rotation animation
     if (Math.abs(rotationSpeed.current) > 0.001) {
       rafId.current = requestAnimationFrame(function animate() {
         setRotationValue(prev => prev + rotationSpeed.current);
@@ -172,11 +167,11 @@ const SpaceCanvas = () => {
     <div 
       ref={containerRef}
       style={{
-        height: isMobile ? "50vh" : "100vh", // Reduced height on mobile
+        height: isMobile ? "60vh" : "100vh", // Slightly increased height for mobile
         width: "100%",
-        touchAction: "pan-y", // Enable vertical scrolling
+        touchAction: "pan-y",
         position: "relative",
-        overflowX: "hidden"
+        overflowX: "hidden",
       }}
     >
       <Canvas
@@ -184,8 +179,8 @@ const SpaceCanvas = () => {
         frameLoop="demand"
         shadows
         camera={{
-          position: isMobile ? [0, 0, 5] : [20, 3, 5],
-          fov: isMobile ? 50 : 25,
+          position: isMobile ? [0, 0, 4] : [20, 3, 5], // Adjusted camera position for mobile
+          fov: isMobile ? 45 : 25, // Adjusted FOV for mobile
           near: 0.1,
           far: 200
         }}
