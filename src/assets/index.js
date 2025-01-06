@@ -25,6 +25,9 @@ import threejs from "./tech/threejs.svg";
 import NCRTCLOGO from "./company/NCRTCLOGO.png";
 import PW from "./company/PW.png";
 import AsteroidsShooter from "./AsteroidsShooter.jpg";
+import youtubeLogo from "../assets/youtubeLogo.png";
+import linkedinLogo from "../assets/linkedinLogo.png";
+
 
 
 
@@ -58,6 +61,8 @@ export {
   PW,
   itchio,
   AsteroidsShooter,
+  youtubeLogo,
+  linkedinLogo,
   carrent,
   jobit,
   tripguide,
