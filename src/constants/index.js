@@ -17,11 +17,7 @@ import {
   docker,
   NCRTCLOGO,
   PW,
-  itchio,
-  carrent,
   AsteroidsShooter,
-  jobit,
-  tripguide,
   threejs,
 } from "../assets";
 
