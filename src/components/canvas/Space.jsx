@@ -1,126 +1,211 @@
 import React, { Suspense, useEffect, useState, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Preload, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import CanvasLoader from "../Loader";
 
-const Space = ({ isMobile, modelRotation, scale }) => {
-  const { scene } = useGLTF("./space-shuttle.glb");
-  const modelRef = useRef();
+const Space = ({ isMobile, rotationValue, scaleFactor, onModelLoad }) => {
+  const space = useGLTF("./space-shuttle.glb");
+  const meshRef = useRef();
+
+  useEffect(() => {
+    if (space && onModelLoad) {
+      onModelLoad(space.scene);
+    }
+  }, [space, onModelLoad]);
 
   useFrame(() => {
-    if (modelRef.current) {
-      modelRef.current.rotation.y = modelRotation;
+    if (meshRef.current) {
+      meshRef.current.rotation.y = rotationValue;
     }
   });
 
+  const lightPosition = [
+    Math.cos(rotationValue) * 2,
+    1,
+    Math.sin(rotationValue) * 2
+  ];
+
   return (
-    <mesh ref={modelRef}>
-      <hemisphereLight intensity={0.5} groundColor="black" />
-      <pointLight intensity={1} position={[10, 10, 10]} />
-      <primitive 
-        object={scene}
-        scale={scale}
-        position={isMobile ? [0, -0.5, -1.5] : [0, -1.4, 0]}
-        rotation-y={0}
+    <group ref={meshRef}>
+      <hemisphereLight intensity={0.3} groundColor="black" />
+      <spotLight
+        position={lightPosition}
+        angle={0.12}
+        penumbra={1}
+        intensity={2}
+        castShadow
+        shadow-mapSize={1024}
       />
-    </mesh>
+      <pointLight intensity={2} />
+      <primitive
+        object={space.scene}
+        scale={scaleFactor}
+        position={isMobile ? [0, -0.5, -1.5] : [1, -1.4, 0]}
+      />
+    </group>
   );
 };
 
 const SpaceCanvas = () => {
   const [isMobile, setIsMobile] = useState(false);
+  const [rotationValue, setRotationValue] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [previousTouch, setPreviousTouch] = useState(null);
-  const [rotation, setRotation] = useState(0);
+  const [lastX, setLastX] = useState(null);
+  const [scaleFactor, setScaleFactor] = useState(0.25);
   const canvasRef = useRef(null);
+  const modelRef = useRef(null);
+  const dragSensitivity = 0.01; // Adjust this value to control rotation speed
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
-    setIsMobile(mediaQuery.matches);
-
-    const handleMediaQueryChange = (event) => {
-      setIsMobile(event.matches);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
 
-    mediaQuery.addEventListener("change", handleMediaQueryChange);
-    return () => {
-      mediaQuery.removeEventListener("change", handleMediaQueryChange);
-    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleMouseDown = (event) => {
-    setIsDragging(true);
+  useEffect(() => {
+    const updateScale = () => {
+      const scale = window.innerWidth / 1500;
+      setScaleFactor(Math.max(0.15, scale));
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
+  const handleModelLoad = (model) => {
+    modelRef.current = model;
   };
 
-  const handleMouseMove = (event) => {
-    if (isDragging) {
-      const sensitivity = 0.01;
-      const delta = event.movementX * sensitivity;
-      setRotation((prev) => prev + delta);
+  const checkIntersection = (x, y) => {
+    if (!canvasRef.current || !modelRef.current) return false;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const rect = canvasRef.current.getBoundingClientRect();
+    
+    mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
+
+    // Get the camera from the canvas
+    const camera = canvasRef.current.camera;
+    if (!camera) return false;
+
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Create an array of all meshes in the model
+    const meshes = [];
+    modelRef.current.traverse((child) => {
+      if (child.isMesh) {
+        meshes.push(child);
+      }
+    });
+
+    const intersects = raycaster.intersectObjects(meshes);
+    return intersects.length > 0;
+  };
+
+  const handlePointerDown = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // For debugging
+    console.log('Pointer down', { clientX, clientY });
+    
+    // Always allow dragging for now (remove this line once intersection works)
+    setIsDragging(true);
+    setLastX(clientX);
+
+    // Uncomment this once the model is properly loaded and detected
+    /*if (checkIntersection(clientX, clientY)) {
+      setIsDragging(true);
+      setLastX(clientX);
+    }*/
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    
+    if (lastX !== null) {
+      const delta = (clientX - lastX) * dragSensitivity;
+      setRotationValue(prev => prev + delta);
+    }
+    
+    setLastX(clientX);
+    
+    // Prevent default only when dragging
+    if (e.cancelable) {
+      e.preventDefault();
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = () => {
     setIsDragging(false);
+    setLastX(null);
   };
 
-  const handleTouchStart = (event) => {
-    const touch = event.touches[0];
-    setPreviousTouch({ x: touch.clientX, y: touch.clientY });
-    setIsDragging(true);
-  };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const handleTouchMove = (event) => {
-    if (isDragging && previousTouch) {
-      const touch = event.touches[0];
-      const sensitivity = 0.01;
-      const delta = (touch.clientX - previousTouch.x) * sensitivity;
-      setRotation((prev) => prev + delta);
-      setPreviousTouch({ x: touch.clientX, y: touch.clientY });
-    }
-  };
+    // Mouse events
+    canvas.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
 
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-    setPreviousTouch(null);
-  };
+    // Touch events
+    canvas.addEventListener('touchstart', handlePointerDown);
+    canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+    canvas.addEventListener('touchend', handlePointerUp);
+
+    return () => {
+      canvas.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+
+      canvas.removeEventListener('touchstart', handlePointerDown);
+      canvas.removeEventListener('touchmove', handlePointerMove);
+      canvas.removeEventListener('touchend', handlePointerUp);
+    };
+  }, [isDragging, lastX]);
 
   return (
-    <div
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ width: '100%', height: '100%', touchAction: 'none' }}
+    <Canvas
+      ref={canvasRef}
+      frameLoop="demand"
+      shadows
+      camera={{
+        position: isMobile ? [0, 0, 5] : [20, 3, 5],
+        fov: isMobile ? 50 : 25,
+        near: 0.1,
+        far: 200
+      }}
+      gl={{ preserveDrawingBuffer: true }}
     >
-      <Canvas
-        ref={canvasRef}
-        frameloop="demand"
-        shadows
-        camera={{ position: [20, 3, 5], fov: 25 }}
-        gl={{ preserveDrawingBuffer: true }}
-      >
-        <Suspense fallback={<CanvasLoader />}>
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            enableRotate={false}
-            maxPolarAngle={Math.PI / 2}
-            minPolarAngle={Math.PI / 2}
-          />
-          <Space 
-            isMobile={isMobile}
-            modelRotation={rotation}
-            scale={isMobile ? 0.7 : 0.75}
-          />
-        </Suspense>
-        <Preload all />
-      </Canvas>
-    </div>
+      <Suspense fallback={<CanvasLoader />}>
+        <OrbitControls
+          enableZoom={false}
+          enablePan={false}
+          enableRotate={false}
+          maxPolarAngle={Math.PI / 2}
+          minPolarAngle={Math.PI / 2}
+        />
+        <Space 
+          isMobile={isMobile} 
+          rotationValue={rotationValue} 
+          scaleFactor={scaleFactor}
+          onModelLoad={handleModelLoad}
+        />
+      </Suspense>
+      <Preload all />
+    </Canvas>
   );
 };
 
