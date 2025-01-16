@@ -122,10 +122,10 @@ const SpaceCanvas = () => {
     setLastX(clientX);
 
     // Uncomment this once the model is properly loaded and detected
-    /*if (checkIntersection(clientX, clientY)) {
+    if (checkIntersection(clientX, clientY)) {
       setIsDragging(true);
       setLastX(clientX);
-    }*/
+    }
   };
 
   const handlePointerMove = (e) => {
